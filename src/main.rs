@@ -4,6 +4,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 const WALL_THICKNESS: f32 = 0.5;
 const WALL_COLLIDER_THICKNESS: f32 = WALL_THICKNESS / 2.0;
+const WALL_COLOR: Color = Color::rgb(192.0, 192.0, 192.0);
 
 #[derive(Component)]
 struct Player {
@@ -22,13 +23,21 @@ impl Player {
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Roll a ball".to_string(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            })
+        )
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(WorldInspectorPlugin::new())
         .add_systems(Startup, scene_setup)
         .add_systems(Startup, spawn_player)
-        .add_systems(Update, move_player)
+        .add_systems(Update, apply_force.after(player_input))
         .run();
 }
 
@@ -48,26 +57,26 @@ fn scene_setup(
     // Spawn back wall
     commands.spawn(PbrBundle {
         mesh: meshes.add(shape::Box::new(10.0, 1.0, WALL_THICKNESS).into()),
-        material: materials.add(Color::rgb(255.0, 255.0, 255.0).into()),
+        material: materials.add(WALL_COLOR.into()),
         transform: Transform::from_xyz(0.0, 0.0, -5.0),
         ..default()
     })
     .insert(RigidBody::Fixed)
         .with_children(|children| {
-            children.spawn(Collider::cuboid(5.0, 1.0, WALL_COLLIDER_THICKNESS));
+            children.spawn(Collider::cuboid(5.0, 0.5, WALL_COLLIDER_THICKNESS));
         })
     .insert(Restitution::coefficient(0.7));
 
     // spawn front wall
     commands.spawn(PbrBundle {
         mesh: meshes.add(shape::Box::new(10.0, 1.0, WALL_THICKNESS).into()),
-        material: materials.add(Color::rgb(255.0, 255.0, 255.0).into()),
+        material: materials.add(WALL_COLOR.into()),
         transform: Transform::from_xyz(0.0, 0.0, 5.0),
         ..default()
     })
     .insert(RigidBody::Fixed)
         .with_children(|children| {
-            children.spawn(Collider::cuboid(5.0, 1.0, WALL_COLLIDER_THICKNESS));
+            children.spawn(Collider::cuboid(5.0, 0.5, WALL_COLLIDER_THICKNESS));
         })
     .insert(Restitution::coefficient(0.7));
 
@@ -77,29 +86,29 @@ fn scene_setup(
     // spawn left wall (relative to camera)
     commands.spawn(PbrBundle {
         mesh: meshes.add(shape::Box::new(10.0, 1.0, WALL_THICKNESS).into()),
-        material: materials.add(Color::rgb(255.0, 255.0, 255.0).into()),
+        material: materials.add(WALL_COLOR.into()),
         transform: t,
         ..default()
     })
     .insert(RigidBody::Fixed)
         .with_children(|children| {
-            children.spawn(Collider::cuboid(5.0, 1.0, WALL_COLLIDER_THICKNESS));
+            children.spawn(Collider::cuboid(5.0, 0.5, WALL_COLLIDER_THICKNESS));
         })
     .insert(Restitution::coefficient(0.7));
 
     // spawn right wall (relative to camera)
     t = Transform::from_translation(Vec3::new(5.0, 0.0, 0.0));
     t.rotate_local_axis(Vec3::Y, 1.571);
-    
+
     commands.spawn(PbrBundle {
         mesh: meshes.add(shape::Box::new(10.0, 1.0, WALL_THICKNESS).into()),
-        material: materials.add(Color::rgb(255.0, 255.0, 255.0).into()),
+        material: materials.add(WALL_COLOR.into()),
         transform: t,
         ..default()
     })
     .insert(RigidBody::Fixed)
     .with_children(|children| {
-        children.spawn(Collider::cuboid(5.0, 1.0, WALL_COLLIDER_THICKNESS));
+        children.spawn(Collider::cuboid(5.0, 0.5, WALL_COLLIDER_THICKNESS));
     })
     .insert(Restitution::coefficient(0.7));
 
@@ -149,33 +158,34 @@ fn spawn_player(
     .insert(Player::new())
     .insert(RigidBody::Dynamic)
         .with_children(|children| {
-            children.spawn(Collider::ball(0.5));
+            children.spawn(Collider::ball(0.25));
         })
-    .insert(Restitution::coefficient(0.7));
+    .insert(ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC)
+    .insert(Restitution::coefficient(0.7))
+    .insert(ColliderMassProperties::Density(2.0));
 }
 
-fn move_player(
-    mut player_query: Query<&mut Transform, With<Player>>,
+fn player_input(
+    mut player_query: Query<&mut Player>,
     input: Res<Input<KeyCode>>,
-    timer: Res<Time>,
 ) {
     for mut player in player_query.iter_mut() {
         if input.pressed(KeyCode::A) {
-            let direction = player.local_x();
-            player.translation -= direction * timer.delta_seconds();
+            player.direction = Vec3::NEG_X;
         }
         if input.pressed(KeyCode::D) {
-            let direction = player.local_x();
-            player.translation += direction * timer.delta_seconds();
+            player.direction = Vec3::X;
         }
         if input.pressed(KeyCode::S) {
-            let direction = player.local_z();
-            player.translation += direction * timer.delta_seconds();
+            player.direction = Vec3::Z;
         }
         if input.pressed(KeyCode::W) {
-            let direction = player.local_z();
-            player.translation -= direction * timer.delta_seconds();
-        }        
+            player.direction = Vec3::NEG_Z;        }        
     }
+}
+
+fn apply_force(
+    mut player_query: Query<(&Player, &RigidBody, &Collider)>,
+) {
 
 }
