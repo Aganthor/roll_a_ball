@@ -160,7 +160,7 @@ fn spawn_player(
         .with_children(|children| {
             children.spawn(Collider::ball(0.25));
         })
-    .insert(ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC)
+    .insert(ActiveCollisionTypes::default() | ActiveCollisionTypes::DYNAMIC_STATIC)
     .insert(Restitution::coefficient(0.7))
     .insert(ColliderMassProperties::Density(2.0));
 }
@@ -180,7 +180,8 @@ fn player_input(
             player.direction = Vec3::Z;
         }
         if input.pressed(KeyCode::W) {
-            player.direction = Vec3::NEG_Z;        }        
+            player.direction = Vec3::NEG_Z;        
+        }        
     }
 }
 
