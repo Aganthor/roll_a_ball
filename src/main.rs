@@ -2,24 +2,15 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
+mod player;
+
+use player::PLayerPlugin;
+
 const WALL_THICKNESS: f32 = 0.5;
 const WALL_COLLIDER_THICKNESS: f32 = WALL_THICKNESS / 2.0;
 const WALL_COLOR: Color = Color::rgb(192.0, 192.0, 192.0);
 
-#[derive(Component)]
-struct Player {
-    direction: Vec3,
-    speed: f32,
-}
 
-impl Player {
-    fn new() -> Self {
-        Player {
-            direction: Vec3::ZERO,
-            speed: 5.0,
-        }
-    }
-}
 
 fn main() {
     App::new()
@@ -35,9 +26,8 @@ fn main() {
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(PLayerPlugin)
         .add_systems(Startup, scene_setup)
-        .add_systems(Startup, spawn_player)
-        .add_systems(Update, apply_force.after(player_input))
         .run();
 }
 
@@ -130,63 +120,4 @@ fn scene_setup(
     });
 }
 
-fn spawn_player(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>, 
-) {
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(
-            Mesh::try_from(shape::Icosphere {
-                radius: 0.5,
-                subdivisions: 3,
-            })
-            .unwrap(),
-        ),
-        material: materials.add(StandardMaterial { 
-            base_color: Color::rgb(1.0, 0.0, 0.0), 
-            metallic: 0.5,
-            ..default()
-        }),
-        transform: Transform {
-            translation: Vec3 { x: 0.0, y: 0.25, z: 0.0 },
-            scale: Vec3 { x: 0.5, y: 0.5, z: 0.5 },
-            ..default()
-        },
-        ..default()
-    })
-    .insert(Player::new())
-    .insert(RigidBody::Dynamic)
-        .with_children(|children| {
-            children.spawn(Collider::ball(0.25));
-        })
-    .insert(ActiveCollisionTypes::default() | ActiveCollisionTypes::DYNAMIC_STATIC)
-    .insert(Restitution::coefficient(0.7))
-    .insert(ColliderMassProperties::Density(2.0));
-}
 
-fn player_input(
-    mut player_query: Query<&mut Player>,
-    input: Res<Input<KeyCode>>,
-) {
-    for mut player in player_query.iter_mut() {
-        if input.pressed(KeyCode::A) {
-            player.direction = Vec3::NEG_X;
-        }
-        if input.pressed(KeyCode::D) {
-            player.direction = Vec3::X;
-        }
-        if input.pressed(KeyCode::S) {
-            player.direction = Vec3::Z;
-        }
-        if input.pressed(KeyCode::W) {
-            player.direction = Vec3::NEG_Z;        
-        }        
-    }
-}
-
-fn apply_force(
-    mut player_query: Query<(&Player, &RigidBody, &Collider)>,
-) {
-
-}
